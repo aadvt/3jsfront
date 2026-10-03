@@ -13,10 +13,25 @@ This is an explainer, not legal advice.
 
 ## Status
 
-**Content complete, 3D in progress.** The architecture, design system, scroll
-storytelling and the full written story are in place. The 3D layer implements three
-of its fifteen chapter treatments so far; the story is already complete and
-readable without it. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**Complete first version.** All fifteen chapters are written from the canonical
+source and told in short steps, each with its scene on the 3D stage and a flat
+SVG equivalent for browsers without WebGL. Mobile is the primary target and has
+had a dedicated pass; the stage renders on demand, and reduced motion is
+supported. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+## Taking over
+
+Read, in order: [`CLAUDE.md`](CLAUDE.md) (the non-negotiables),
+[`docs/PRINCIPLES.md`](docs/PRINCIPLES.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
+[`docs/DESIGN.md`](docs/DESIGN.md) and [`docs/CONTENT.md`](docs/CONTENT.md).
+
+- All copy lives in `src/content/` — chapters, steps ("moments") and terms.
+- The 3D script — where the data is and where the camera looks at each step —
+  is `src/three/timeline.ts`; each chapter's scene is its own file in
+  `src/three/`.
+- Open items are listed at the end of `docs/ROADMAP.md`. One content check is
+  outstanding: chapter 08's mention of record identifiers and locale should be
+  verified against the canonical source (see `docs/CONTENT.md`).
 
 ## Getting started
 
