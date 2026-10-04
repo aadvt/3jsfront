@@ -1,48 +1,41 @@
-import { Suspense, useEffect, useMemo, useState } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
-import { StoryScene } from './StoryScene'
+import { useEffect, useState } from 'react'
+import { Canvas } from '@react-three/fiber'
+import { AdaptiveDpr, PerformanceMonitor } from '@react-three/drei'
+import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing'
+import { useStageColors } from '../hooks/useStageColors'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion'
-import { storyStore } from '../state/storyStore'
 import { markStageLost } from './stageStatus'
+import { World } from './World'
 
 /**
- * How much resolution the stage can afford, decided once from what the device
- * says about itself. A phone's reported ratio is often 3; an abstract,
- * low-contrast scene gains nothing from it. A device that reports little
- * memory or few cores starts lower still. `Director` can step down further if
- * frames run slow.
+ * How much the device can afford, decided once from what it says about
+ * itself. Phones get a capped pixel ratio and no post-processing; a desktop
+ * with a mouse gets bloom on the glowing data states and can turn models.
  */
-function resolution(): { dpr: [number, number]; frugal: boolean } {
+function capabilities() {
   const coarse = window.matchMedia('(pointer: coarse)').matches
+  const fine = window.matchMedia('(pointer: fine)').matches
   const nav = navigator as Navigator & { deviceMemory?: number }
   const frugal = (nav.deviceMemory !== undefined && nav.deviceMemory <= 4) || navigator.hardwareConcurrency <= 4
-  if (coarse) return { dpr: [1, frugal ? 1.25 : 1.5], frugal }
-  return { dpr: [1, 2], frugal }
+  return {
+    dpr: (coarse ? [1, frugal ? 1.25 : 1.6] : [1, 2]) as [number, number],
+    effects: fine && !frugal,
+    drag: fine,
+  }
 }
 
 /**
- * The scene renders on demand: a frame is drawn only when something has
- * changed. This wakes it when the story position or the pointer moves; the
- * director keeps it awake while anything is still settling, and lets it sleep
- * otherwise. A phone resting on a chapter renders nothing.
- */
-function Waker() {
-  const invalidate = useThree((s) => s.invalidate)
-  useEffect(() => storyStore.onChange(() => invalidate()), [invalidate])
-  return null
-}
-
-/**
- * The one and only canvas. It is mounted once for the lifetime of the page and
- * sits behind the document as a decorative-by-ARIA, meaningful-by-design layer:
- * every claim it illustrates is also written in the HTML beside it.
+ * The one and only canvas, fixed behind the page for its whole lifetime.
+ * Every explanation is in the HTML; this is the picture of it.
  */
 export function Stage() {
   const reducedMotion = usePrefersReducedMotion()
-  const [visible, setVisible] = useState(true)
+  const colors = useStageColors()
+  const [caps] = useState(capabilities)
+  const [visible, setVisible] = useState(!document.hidden)
   const [ready, setReady] = useState(false)
   const [lost, setLost] = useState(false)
-  const { dpr, frugal } = useMemo(() => resolution(), [])
+  const [effects, setEffects] = useState(caps.effects)
 
   useEffect(() => {
     const onVisibility = () => setVisible(!document.hidden)
@@ -53,19 +46,16 @@ export function Stage() {
   if (lost) return null
 
   return (
-    // Faded in once the first frame exists, so the stage arrives rather than
-    // pops in after the lazy chunk loads.
     <div className="stage" aria-hidden="true" data-ready={ready || undefined}>
       <Canvas
-        // Colours come from the CSS tokens and must render as those colours:
-        // no tone mapping, which would darken and desaturate them.
+        // Colours come from the CSS tokens and must render as those colours.
         flat
+        dpr={caps.dpr}
+        // Under reduced motion nothing animates on its own, so draw only on change.
+        frameloop={!visible ? 'never' : reducedMotion ? 'demand' : 'always'}
+        gl={{ antialias: !effects, alpha: false, powerPreference: 'high-performance', stencil: false }}
+        camera={{ fov: 34, near: 0.1, far: 220, position: [0, 20, 60] }}
         onCreated={({ gl }) => {
-          // Development only: expose the renderer so the mobile audit can read draw calls.
-          if (import.meta.env.DEV) (window as unknown as { __gl: unknown }).__gl = gl
-          // If the browser takes the GPU context away mid-story (memory
-          // pressure, a backgrounded tab on a phone), the flat figures take
-          // over where the reader is, rather than leaving an empty stage.
           gl.domElement.addEventListener('webglcontextlost', (event) => {
             event.preventDefault()
             markStageLost()
@@ -73,26 +63,19 @@ export function Stage() {
           })
           requestAnimationFrame(() => {
             setReady(true)
-            // The hero's flat picture holds the place until now (see CSS).
             document.documentElement.dataset.stageReady = ''
           })
         }}
-        frameloop={visible ? 'demand' : 'never'}
-        dpr={dpr}
-        gl={{
-          // Multisampling only where there is fill-rate to spare.
-          antialias: dpr[1] > 1.5,
-          alpha: true,
-          powerPreference: frugal ? 'low-power' : 'high-performance',
-          stencil: false,
-          depth: true,
-        }}
-        camera={{ fov: 38, near: 0.1, far: 120, position: [0, -0.75, 4.6] }}
       >
-        <Waker />
-        <Suspense fallback={null}>
-          <StoryScene reducedMotion={reducedMotion} />
-        </Suspense>
+        <PerformanceMonitor onDecline={() => setEffects(false)} />
+        <AdaptiveDpr pixelated={false} />
+        <World colors={colors} reducedMotion={reducedMotion} drag={caps.drag} />
+        {effects ? (
+          <EffectComposer multisampling={4}>
+            <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.05} intensity={0.7} />
+            <Vignette offset={0.25} darkness={0.35} />
+          </EffectComposer>
+        ) : null}
       </Canvas>
     </div>
   )

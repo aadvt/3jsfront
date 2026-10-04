@@ -1,68 +1,49 @@
-import { Fragment, useEffect } from 'react'
+import { useEffect } from 'react'
 import { CanvasNotice } from './components/CanvasNotice'
-import { ProgressRail } from './components/ProgressRail'
+import { DetailSheet } from './components/DetailSheet'
 import { SiteHeader } from './components/SiteHeader'
-import { StageCounter } from './components/StageCounter'
-import { acts } from './content/acts'
-import { chapters } from './content/chapters'
-import { ActBreak } from './sections/ActBreak'
-import { ChapterSection } from './sections/ChapterSection'
+import { StationNav } from './components/StationNav'
+import { stations } from './content/stations'
+import { useJourneyScroll } from './hooks/useJourneyScroll'
+import { useWebGLSupport } from './hooks/useWebGLSupport'
 import { Colophon } from './sections/Colophon'
 import { Hero } from './sections/Hero'
-import { Legend } from './sections/Legend'
-import { Prologue } from './sections/Prologue'
-import { StoryIndex } from './sections/StoryIndex'
-import { useScrollDriver } from './hooks/useScrollDriver'
-import { useWebGLSupport } from './hooks/useWebGLSupport'
+import { StationSection } from './sections/StationSection'
 import { LazyStage } from './three/LazyStage'
-
-/** Act breaks are interleaved before the first chapter of each act. */
-const actOpeners = new Map(
-  acts.map((act) => [chapters.find((c) => c.actId === act.id)?.id, act]),
-)
 
 export default function App() {
   const webgl = useWebGLSupport()
-  useScrollDriver()
+  useJourneyScroll()
 
-  // Exposed to CSS so the flat figures can stand in for the stage exactly
-  // when the stage cannot exist.
+  // Exposed to CSS so the flat figures stand in exactly when the stage cannot.
   useEffect(() => {
     document.documentElement.dataset.stage = webgl
   }, [webgl])
 
   return (
     <>
-      <a className="skip-link" href="#story">
-        Skip to the story
+      <a className="skip-link" href="#people">
+        Skip to the guide
       </a>
 
       {webgl === 'available' ? <LazyStage /> : null}
+      {/* The part of the screen the stage frames its subject in. CSS places it
+          per layout; the camera fits each model to it. */}
+      <div className="stage-window" aria-hidden="true" />
 
       <SiteHeader />
-      <ProgressRail />
-      <StageCounter />
+      <StationNav />
 
       <main id="story">
         <Hero />
         {webgl === 'unavailable' ? <CanvasNotice /> : null}
-        <Prologue />
-        <Legend />
-
-        {chapters.map((chapter, index) => {
-          const opening = actOpeners.get(chapter.id)
-          return (
-            <Fragment key={chapter.id}>
-              {opening ? <ActBreak act={opening} /> : null}
-              <ChapterSection chapter={chapter} index={index} />
-            </Fragment>
-          )
-        })}
-
-        <StoryIndex />
+        {stations.map((station, index) => (
+          <StationSection key={station.id} station={station} index={index} />
+        ))}
       </main>
 
       <Colophon />
+      <DetailSheet />
     </>
   )
 }

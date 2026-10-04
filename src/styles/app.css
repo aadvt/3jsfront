@@ -1,1808 +1,991 @@
-/* Layout and components. Mobile first: the base rules below ARE the phone
-   design (375–430px). Media queries add to it at 768, 1024 and 1280 — they never
-   undo a desktop rule, because there isn't one. */
+/* Layout and components. Mobile first: the base rules ARE the phone design.
+   Media queries are min-width only: 768, 1024, 1280.
+
+   One idea holds the layout together: the page decides where the words go,
+   and `.stage-window` marks the space left for the picture. The camera fits
+   every model to that rectangle, so the model and the text line up at every
+   size without either guessing about the other. */
+
+:root {
+  --window-top: calc(var(--header-h) + var(--s-2));
+  --window-h: 44svh;
+  --card-w: 100%;
+}
 
 /* ---------------------------------------------------------------- stage ---- */
-/* The single persistent canvas. Fixed, behind everything, never interactive —
-   so it can never swallow a scroll gesture or a tap. */
+/* The single persistent canvas, fixed behind everything. Its empty parts take
+   the pointer (to point at and turn models); the words sit above it. */
 .stage {
   position: fixed;
   inset: 0;
   z-index: 0;
-  pointer-events: none;
   opacity: 0;
   transition: opacity var(--dur-slow) var(--ease);
+  touch-action: pan-y;
 }
 
-/* The stage arrives once its first frame exists, rather than popping in when
-   the lazily loaded chunk lands. */
 .stage[data-ready] {
   opacity: 1;
 }
 
+.stage-window {
+  position: fixed;
+  top: var(--window-top);
+  left: 0;
+  right: 0;
+  height: var(--window-h);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+main,
+.colophon {
+  position: relative;
+  z-index: 1;
+}
+
+/* Sections pass the pointer through to the stage; only their cards take it. */
+main {
+  pointer-events: none;
+}
+
+main :where(.card, .hero__inner, .canvas-notice) {
+  pointer-events: auto;
+}
+
 /* ------------------------------------------------------------- caps text --- */
-/* The site's one small-caps voice: labels, eyebrows, captions. */
 .hero__eyebrow,
-.chapter__eyebrow,
-.chapter__caution-label,
-.chapter__visual > figcaption,
-.legend__title,
-.index__eyebrow,
-.legend__facts dt,
-.beat__count,
-.hero__hint {
+.card__eyebrow,
+.control__prompt,
+.sheet__eyebrow,
+.detail__kicker,
+.detail__tag,
+.route__label,
+.site-header__now {
+  font-family: var(--font-mono);
   font-size: var(--t-micro);
-  font-weight: 600;
   letter-spacing: var(--track-caps);
   text-transform: uppercase;
+  color: var(--ink-muted);
 }
 
 /* --------------------------------------------------------------- header ---- */
 .site-header {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  inset: 0 0 auto;
   z-index: 20;
+  height: var(--header-h);
   display: flex;
   align-items: center;
-  min-height: calc(var(--header-h) + env(safe-area-inset-top, 0px));
-  padding: env(safe-area-inset-top, 0px) var(--gutter) 0;
-  /* Chapter cards scroll beneath the header on a phone, so it needs a real
-     surface, not a fade: the same frosted paper as the cards, one hairline. */
-  background: var(--sheet-bg);
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: 0 var(--gutter);
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
   backdrop-filter: var(--sheet-blur);
   -webkit-backdrop-filter: var(--sheet-blur);
   border-bottom: 1px solid var(--sheet-border);
 }
 
 .site-header__mark {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--s-2);
+  gap: var(--s-3);
   min-height: 44px;
   text-decoration: none;
 }
 
 .site-header__glyph {
-  width: 1.5rem;
-  height: 1.5rem;
-  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 .site-header__text {
-  display: grid;
-  line-height: 1.2;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
 }
 
 .site-header__title {
-  font-family: var(--font-display);
+  font-weight: 700;
   font-size: var(--t-small);
-  font-weight: 650;
   letter-spacing: -0.01em;
 }
 
-/* At the narrowest phones the header row belongs to the title and the
-   counter; the subtitle joins once there is room for both. */
 .site-header__sub {
-  display: none;
   font-size: var(--t-micro);
   color: var(--ink-muted);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
-/* ----------------------------------------------------------------- rail ---- */
-/* Hidden on small screens, where the compact counter does the same job. */
-.rail {
+.site-header__now {
+  min-width: 7rem;
+  text-align: right;
+}
+
+.site-header__now > span {
+  display: inline-block;
+}
+
+.site-header__num {
+  color: var(--c-data);
+  font-weight: 700;
+}
+
+.site-header__progress {
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 2px;
+  overflow: hidden;
+}
+
+.site-header__progress > span {
+  display: block;
+  height: 100%;
+  background: var(--c-data);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+/* ---------------------------------------------------------------- route ---- */
+.route {
   display: none;
-}
-
-@media (min-width: 400px) {
-  .site-header__sub {
-    display: block;
-  }
-}
-
-/* -------------------------------------------------------------- counter ---- */
-/* On a phone the counter shares the header row, top right, so it never sits
-   on the reading sheet at the bottom of the screen. */
-.counter {
-  position: fixed;
-  z-index: 21;
-  top: calc(env(safe-area-inset-top, 0px) + (var(--header-h) - 1.75rem) / 2);
-  right: var(--gutter);
-  display: flex;
-  align-items: center;
-  height: 1.75rem;
-  padding: 0 var(--s-3);
-  border: 1px solid var(--sheet-border);
-  border-radius: 999px;
-  background: var(--sheet-bg);
-  backdrop-filter: var(--sheet-blur);
-  -webkit-backdrop-filter: var(--sheet-blur);
-  font-size: var(--t-micro);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-/* `hidden` must win over the display rule above: nothing to count yet. */
-.counter[hidden] {
-  display: none;
-}
-
-.counter__index {
-  font-family: var(--font-mono);
-  color: var(--ink-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-/* At 320px the stage name alone fits beside the title; the position joins it
-   from 360px. The screen-reader text inside is untouched either way. */
-.counter__index > [aria-hidden] {
-  display: none;
-}
-
-@media (min-width: 360px) {
-  .counter {
-    gap: var(--s-2);
-  }
-
-  .counter__index > [aria-hidden] {
-    display: inline;
-  }
-}
-
-.counter__stage {
-  font-weight: 650;
 }
 
 /* ----------------------------------------------------------------- hero ---- */
-/* On a phone the title screen is three bands: the title at the top, the
-   picture in the middle (you, and your data hanging beneath you — drawn by the
-   stage, which is framed to land there), and the lead at the bottom. The
-   words never sit on the picture. From 768px the words gather at the bottom
-   left and the picture has the rest of the screen. */
+/* On a phone the overview fills the top of the screen; the words sit under it. */
 .hero {
-  position: relative;
-  z-index: 1;
   min-height: 100svh;
-  padding: calc(var(--header-h) + env(safe-area-inset-top, 0px) + var(--s-4)) var(--gutter)
-    calc(var(--s-5) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: flex-end;
+  padding: calc(var(--window-top) + var(--window-h) - var(--s-6)) var(--gutter) var(--s-7);
 }
 
 .hero__inner {
-  display: grid;
-  /* The picture's band is never less than 40% of the screen: on a short
-     phone the lead flows just below the first screen rather than under the
-     picture. */
-  grid-template-rows: auto auto minmax(40svh, 1fr) auto auto;
-  min-height: calc(
-    100svh - var(--header-h) - env(safe-area-inset-top, 0px) - var(--s-4) - var(--s-5) -
-      env(safe-area-inset-bottom, 0px)
-  );
-  max-width: var(--measure);
+  max-width: 36rem;
 }
 
 .hero__eyebrow {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s-2);
-  color: var(--ink-muted);
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
 }
 
 .hero__year {
-  padding: 1px var(--s-2);
-  border: 1px solid var(--hairline-strong);
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  letter-spacing: 0.06em;
-  color: var(--ink-soft);
+  color: var(--c-data);
 }
 
 .hero__title {
-  margin-top: var(--s-3);
   font-family: var(--font-display);
   font-size: var(--t-h1);
   line-height: var(--lh-tight);
   letter-spacing: var(--track-display);
-  font-weight: 700;
+  font-weight: 750;
 }
 
-/* "your data" is the only coloured phrase on the page, because colour belongs
-   to the data. The line break before it is a layout decision, not markup. */
 .hero__title-em {
-  display: block;
   color: var(--c-data);
-}
-
-/* The picture's band. The flat figure holds the place from first paint until
-   the stage has drawn its first frame, then fades as the stage fades in — so
-   the title screen is never empty while the 3D loads, and is complete if it
-   never does. */
-.hero .stand-in {
-  display: block;
-  transition: opacity var(--dur-slow) var(--ease);
-  grid-row: 3;
-  align-self: center;
-  justify-self: center;
-  width: 7.5rem;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
 }
 
 .hero__lead {
-  grid-row: 4;
-  font-family: var(--font-serif);
+  margin-top: var(--s-4);
   font-size: var(--t-lead);
-  line-height: 1.42;
+  line-height: var(--lh-snug);
   color: var(--ink-soft);
-  text-wrap: pretty;
+  max-width: 32rem;
 }
 
-.hero__disclaimer {
-  grid-row: 5;
-  margin-top: var(--s-3);
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-4);
+  margin-top: var(--s-5);
+}
+
+.hero__meta {
   font-size: var(--t-small);
   color: var(--ink-muted);
 }
 
-/* The picture already says "keep going" on a phone; the hint is for larger
-   screens, where the eye may not travel to it. */
-.hero__hint {
-  display: none;
-}
-
-.hero__hint-line {
-  width: 1px;
-  height: 1.75rem;
-  background: linear-gradient(to bottom, var(--hairline-strong), var(--ink));
-}
-
-/* ------------------------------------------------------------- prologue ---- */
-/* Three beats, each a viewport tall, so the stage can hold on the part each
-   one names. On a phone the words sit in a compact card at the bottom and the
-   picture has the screen above it. */
-.beat {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  align-content: end;
-  min-height: 100svh;
-  padding: calc(var(--header-h) + var(--s-5)) var(--s-2)
-    calc(var(--s-5) + env(safe-area-inset-bottom, 0px));
-}
-
-.beat__card {
-  display: flex;
-  gap: var(--s-4);
-  align-items: center;
-  padding: var(--s-4) var(--s-4) var(--s-5);
-  border: 1px solid var(--sheet-border);
-  border-radius: var(--radius-sheet);
-  background: var(--sheet-bg);
-  backdrop-filter: var(--sheet-blur);
-  -webkit-backdrop-filter: var(--sheet-blur);
-  box-shadow: var(--shadow-lift);
-}
-
-.beat__count {
-  font-family: var(--font-mono);
+.hero__disclaimer {
+  margin-top: var(--s-4);
+  font-size: var(--t-micro);
   color: var(--ink-muted);
 }
 
-.beat__title {
-  margin-top: var(--s-1);
-  font-family: var(--font-display);
-  font-size: clamp(1.5rem, 0.6rem + 5vw, var(--t-h2));
-  line-height: var(--lh-title);
-  letter-spacing: var(--track-title);
-  font-weight: 680;
-  text-wrap: balance;
+/* -------------------------------------------------------------- station ---- */
+/* Each station starts with the picture's space, then the card. The camera
+   holds on the model while the card is read, and travels on as it leaves. */
+.station {
+  min-height: 100svh;
+  padding: calc(var(--window-top) + var(--window-h)) var(--gutter) var(--s-5);
+  scroll-margin-top: 0;
 }
 
-.beat[data-beat='data'] .beat__title {
+.card {
+  position: relative;
+  width: var(--card-w);
+  max-width: 34rem;
+  padding: var(--s-5);
+  background: var(--sheet-bg);
+  backdrop-filter: var(--sheet-blur);
+  -webkit-backdrop-filter: var(--sheet-blur);
+  border: 1px solid var(--sheet-border);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--shadow-lift);
+}
+
+.card__figure {
+  display: none;
+}
+
+/* On a phone the card opens with the idea and its control, so the reader can
+   try it while the model is still in view; the points follow. */
+.card {
+  display: flex;
+  flex-direction: column;
+}
+
+.card .control {
+  order: 1;
+}
+
+.card__points {
+  order: 2;
+}
+
+.card__actions {
+  order: 3;
+}
+
+.card__eyebrow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.card__number {
+  font-size: var(--t-small);
+  font-weight: 700;
   color: var(--c-data);
 }
 
-.beat__text {
+.card__label {
+  margin-left: auto;
+}
+
+.card__title {
   margin-top: var(--s-2);
+  font-family: var(--font-display);
+  font-size: var(--t-h2);
+  line-height: var(--lh-title);
+  letter-spacing: var(--track-title);
+  font-weight: 720;
+  text-wrap: balance;
+}
+
+.card__takeaway {
+  margin-top: var(--s-3);
+  padding-left: var(--s-3);
+  border-left: 2px solid var(--c-data);
   font-family: var(--font-serif);
-  font-size: clamp(1.0625rem, 0.6rem + 2.4vw, var(--t-lead));
+  font-size: var(--t-body);
   line-height: var(--lh-snug);
   color: var(--ink-soft);
-  text-wrap: pretty;
 }
 
-/* -------------------------------------------------------------- moments --- */
-/* A chapter told in moments starts at the top of its track: its first moment
-   is its opening, and the stage's timing assumes moment k is in view after k
-   viewports of scroll. Anything the track has left over falls after the
-   summary, not before the opener. */
-.chapter.chapter--moments {
-  align-content: start;
-  min-height: 0;
-}
-
-/* On a phone the summary of a chapter told in moments does not repeat the
-   picture: the stage has just shown it, step by step. */
-.chapter--moments .chapter__plate {
-  display: none;
-}
-
-/* A chapter told in steps reuses the beat layout: one viewport per moment,
-   words in a card below the picture on a phone, a ruled column on a desktop.
-   The term is named with its mark, so the shape on the stage and the word on
-   the page are introduced together. */
-.moment .chapter__eyebrow {
-  margin-top: 0;
-}
-
-.moment .chapter__title {
-  margin-top: var(--s-2);
-}
-
-.moment__tag {
-  display: inline-block;
-  margin-top: var(--s-2);
-  padding: 2px var(--s-2);
-  border: 1px solid var(--hairline-strong);
-  border-radius: 999px;
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.card__points {
+  margin-top: var(--s-4);
+  display: grid;
+  gap: var(--s-2);
+  font-size: var(--t-small);
+  line-height: var(--lh-snug);
   color: var(--ink-soft);
 }
 
-/* The real yes is the one tag in the consent tone: it is the only one that
-   attaches anything. */
-.moment[data-moment='given'] .moment__tag {
-  border-color: var(--c-grant);
-  color: var(--c-grant);
+.card__points li {
+  position: relative;
+  padding-left: var(--s-4);
 }
 
-.moment__term {
+.card__points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.5em;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 1px;
+  background: var(--c-data);
+  transform: rotate(45deg);
+}
+
+.card__points strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-5);
+}
+
+/* -------------------------------------------------------------- control ---- */
+.control {
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--hairline);
+}
+
+.control__prompt {
+  margin-bottom: var(--s-3);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.chip {
+  position: relative;
+  min-height: 44px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--t-small);
+  font-weight: 600;
+  cursor: pointer;
+  isolation: isolate;
+  transition: border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.chip:hover {
+  border-color: var(--ink-muted);
+}
+
+.chip:active {
+  transform: scale(0.97);
+}
+
+.chip__fill {
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--ink);
+}
+
+.chip[data-tone='grant'] .chip__fill {
+  background: var(--c-grant);
+}
+
+.chip[data-tone='refuse'] .chip__fill {
+  background: var(--c-withdraw);
+}
+
+.chip[aria-pressed='true'] {
+  color: var(--paper-raised);
+  border-color: transparent;
+}
+
+.chip__label {
+  position: relative;
+}
+
+/* The system station has seven steps: a tighter set. */
+.chips[data-count='7'] .chip {
+  min-height: 40px;
+  padding: 0 var(--s-3);
+  font-size: var(--t-micro);
+  letter-spacing: 0.02em;
+}
+
+.control__result-wrap {
+  min-height: 4.2em;
+}
+
+.control__result {
+  margin-top: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--radius-lg);
+  background: var(--paper-sunken);
+  font-size: var(--t-small);
+  line-height: var(--lh-snug);
+  color: var(--ink-soft);
+  border-left: 3px solid var(--ink-muted);
+}
+
+.control__result[data-tone='grant'] {
+  border-left-color: var(--c-grant);
+}
+
+.control__result[data-tone='refuse'] {
+  border-left-color: var(--c-withdraw);
+  background: var(--wash-withdraw);
+}
+
+.switches {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.switch {
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  margin-top: var(--s-2);
-  font-family: var(--font-display);
-  /* 26px on a 320px phone, the full title size from about 430px. */
-  font-size: clamp(1.5rem, 0.6rem + 5vw, var(--t-h2));
-  line-height: var(--lh-title);
-  letter-spacing: var(--track-title);
-  font-weight: 680;
-}
-
-.moment__glyph {
-  flex: none;
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: var(--s-1);
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
-  background: var(--plate-bg);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--t-small);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
 }
 
-/* The last moment of the story: the line to remember, set larger and in the
-   site's own voice, with nothing competing around it. */
-.moment[data-moment='closing'] .beat__card {
-  padding-block: var(--s-6);
+.switch[aria-disabled='true'] {
+  cursor: not-allowed;
 }
 
-.moment[data-moment='closing'] .moment__term {
-  /* Large, but not the hero's size: it should land in two lines, not four. */
-  font-size: clamp(2.5rem, 1.9rem + 2.6vw, 4rem);
-  line-height: var(--lh-tight);
-  letter-spacing: var(--track-display);
-  font-weight: 700;
+.switch__track {
+  flex: none;
+  display: flex;
+  width: 2.5rem;
+  height: 1.4rem;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--hairline-strong);
+  transition: background var(--dur-fast) var(--ease);
 }
 
-.moment[data-moment='closing'] .moment__plain {
-  margin-top: var(--s-4);
-  font-family: var(--font-serif);
-  font-size: var(--t-lead);
-  line-height: var(--lh-snug);
+.switch[data-on] .switch__track {
+  justify-content: flex-end;
+  background: var(--c-grant);
+}
+
+.switch[aria-disabled='true'][data-on] .switch__track {
+  background: var(--ink-soft);
+}
+
+.switch__thumb {
+  width: calc(1.4rem - 6px);
+  height: calc(1.4rem - 6px);
+  border-radius: 50%;
+  background: var(--paper-raised);
+  box-shadow: var(--shadow-near);
+}
+
+.switch__note {
+  margin-left: auto;
+  font-size: var(--t-micro);
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------------------- buttons ---- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 44px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--t-small);
+  font-weight: 650;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.button:hover {
+  border-color: var(--ink);
+}
+
+.button:active {
+  transform: scale(0.97);
+}
+
+.button--primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper-raised);
+}
+
+.button--primary:hover {
+  background: var(--c-data);
+  border-color: var(--c-data);
+}
+
+.button--quiet {
+  border-color: transparent;
+  color: var(--ink-soft);
+}
+
+.button .arrow {
+  transition: translate var(--dur-fast) var(--ease);
+}
+
+.button:hover .arrow {
+  translate: 2px 0;
+}
+
+/* ----------------------------------------------------------- stage tags ---- */
+/* Labels pinned to the models. Copies of words in the cards, aria-hidden. */
+.tag-anchor {
+  pointer-events: none;
+}
+
+.tag {
+  display: block;
+  white-space: nowrap;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--paper-raised) 86%, transparent);
+  border: 1px solid var(--sheet-border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  user-select: none;
+}
+
+.tag[data-strong] {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0;
   color: var(--ink);
 }
 
-/* The Act's own wording, in the Act's voice. */
-.moment__definition {
+.tag[data-tone='grant'] {
+  color: var(--c-grant);
+}
+
+.tag[data-tone='refuse'] {
+  color: var(--c-withdraw);
+}
+
+.tag[data-tone='data'] {
+  color: var(--c-data);
+}
+
+.tag[data-tone='purpose'] {
+  color: var(--c-purpose);
+}
+
+/* ---------------------------------------------------------------- sheet ---- */
+/* The detail sheet: a native modal dialog. A bottom sheet on a phone, a side
+   panel from tablet up. Its body scrolls; the page behind it does not. */
+:root.is-modal {
+  overflow: hidden;
+}
+
+.sheet {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+}
+
+.sheet::backdrop {
+  background: rgb(10 11 14 / 0.38);
+  backdrop-filter: blur(4px);
+}
+
+.sheet__panel {
+  position: absolute;
+  inset: auto 0 0;
+  max-height: 92svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper-raised);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  box-shadow: var(--shadow-sheet);
+}
+
+.sheet__header {
+  position: relative;
+  padding: var(--s-5) calc(var(--gutter) + 3rem) var(--s-4) var(--gutter);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.sheet__eyebrow span {
+  color: var(--c-data);
+  font-weight: 700;
+}
+
+.sheet__title {
+  margin-top: var(--s-2);
+  font-size: var(--t-h3);
+  line-height: var(--lh-title);
+  letter-spacing: var(--track-title);
+}
+
+.sheet__close {
+  position: absolute;
+  top: var(--s-4);
+  right: var(--s-4);
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sheet__close:hover {
+  border-color: var(--ink);
+}
+
+.sheet__body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--s-2) var(--gutter) var(--s-8);
+}
+
+.detail {
+  padding: var(--s-5) 0;
+}
+
+.detail + .detail {
+  border-top: 1px solid var(--hairline);
+}
+
+.detail__title {
+  margin-top: var(--s-2);
+  font-size: var(--t-h3);
+  line-height: var(--lh-title);
+  letter-spacing: var(--track-title);
+}
+
+.detail__takeaway {
   margin-top: var(--s-3);
   font-family: var(--font-serif);
-  font-size: clamp(1.0625rem, 0.6rem + 2.4vw, var(--t-lead));
-  font-style: italic;
+  font-size: var(--t-body);
   line-height: var(--lh-snug);
-  text-wrap: pretty;
-}
-
-/* What it means here, in the site's voice. */
-.moment__plain {
-  margin-top: var(--s-2);
   color: var(--ink-soft);
-  text-wrap: pretty;
 }
 
-/* ------------------------------------------------------ prologue figure ---- */
-/* The flat opening picture. It stands in for the stage only when the stage
-   cannot exist; with WebGL, the stage draws the same thing. */
+.detail__moments {
+  margin-top: var(--s-4);
+  display: grid;
+  gap: var(--s-4);
+  counter-reset: moment;
+}
+
+.detail__moments li {
+  position: relative;
+  padding-left: var(--s-6);
+  counter-increment: moment;
+  font-size: var(--t-small);
+  line-height: var(--lh-body);
+  color: var(--ink-soft);
+}
+
+.detail__moments li::before {
+  content: counter(moment, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 0.1em;
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  color: var(--c-data);
+}
+
+.detail__moments h4 {
+  font-size: var(--t-body);
+  color: var(--ink);
+  line-height: var(--lh-snug);
+}
+
+.detail__tag {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.detail__definition {
+  margin: var(--s-1) 0;
+  padding-left: var(--s-3);
+  border-left: 2px solid var(--c-purpose);
+  font-family: var(--font-serif);
+  color: var(--ink);
+}
+
+.detail__brief {
+  margin-top: var(--s-3);
+  font-size: var(--t-small);
+  color: var(--ink-soft);
+}
+
+.detail__depth {
+  margin-top: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--radius-lg);
+  background: var(--paper-sunken);
+  font-size: var(--t-small);
+}
+
+.detail__depth h4 {
+  margin-bottom: var(--s-2);
+}
+
+.detail__depth ul {
+  display: grid;
+  gap: var(--s-2);
+  padding-left: var(--s-4);
+  list-style: disc;
+  color: var(--ink-soft);
+}
+
+.detail__caution {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--radius-lg);
+  background: var(--wash-withdraw);
+  border-left: 3px solid var(--c-withdraw);
+  font-size: var(--t-small);
+}
+
+.detail__source {
+  margin-top: var(--s-4);
+  font-size: var(--t-micro);
+  color: var(--ink-muted);
+}
+
+/* -------------------------------------------------------- canvas notice ---- */
+.canvas-notice {
+  margin: 0 var(--gutter) var(--s-6);
+  padding: var(--s-4);
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-lg);
+  font-size: var(--t-small);
+  color: var(--ink-soft);
+}
+
+/* ------------------------------------------------------------- colophon ---- */
+.colophon {
+  background: var(--paper-sunken);
+  border-top: 1px solid var(--hairline);
+}
+
+.colophon__inner {
+  max-width: 44rem;
+  padding: var(--s-8) var(--gutter);
+  display: grid;
+  gap: var(--s-3);
+  font-size: var(--t-small);
+  color: var(--ink-soft);
+}
+
+.colophon__title {
+  font-size: var(--t-h3);
+  color: var(--ink);
+}
+
+.colophon__legal {
+  font-size: var(--t-micro);
+  line-height: var(--lh-body);
+  color: var(--ink-muted);
+}
+
+/* ---------------------------------------------------- without a stage ------ */
+/* No WebGL, or it was lost: no space is kept for a picture. Each card shows
+   its flat figure instead, and the page reads as a short list of cards. */
 .stand-in {
   display: none;
-  flex: none;
-  width: 5.5rem;
+  width: 100%;
+  max-width: 12rem;
   height: auto;
   overflow: visible;
 }
 
-:root[data-stage-ready] .hero .stand-in {
-  opacity: 0;
+:root[data-stage='unavailable'],
+:root[data-stage='lost'] {
+  --window-h: 0px;
+}
+
+:root[data-stage='unavailable'] .station,
+:root[data-stage='lost'] .station {
+  min-height: 0;
+  padding-top: var(--s-5);
+  padding-bottom: var(--s-5);
+}
+
+:root[data-stage='unavailable'] .hero,
+:root[data-stage='lost'] .hero {
+  min-height: 0;
+  padding-top: calc(var(--header-h) + var(--s-7));
+}
+
+:root[data-stage='unavailable'] .card__figure,
+:root[data-stage='lost'] .card__figure {
+  display: block;
+  margin-bottom: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--radius-lg);
+  background: var(--plate-bg);
 }
 
 :root[data-stage='unavailable'] .stand-in,
 :root[data-stage='lost'] .stand-in {
   display: block;
-}
-
-/* Chapter 06's flat checkpoints and beads. */
-.stand-in__check {
-  fill: none;
-  stroke: var(--ink-muted);
-  stroke-width: 1.5;
-}
-
-.stand-in__check.is-pass {
-  stroke: var(--c-grant);
-}
-
-.stand-in__check.is-fail {
-  stroke: var(--c-withdraw);
-  stroke-width: 2;
-}
-
-.stand-in__bead {
-  stroke-width: 1.5;
-}
-
-.stand-in__bead--silence {
-  fill: var(--plate-bg);
-  stroke: var(--ink-muted);
-  stroke-dasharray: 2 2;
-}
-
-.stand-in__bead--uninformed {
-  fill: var(--hairline-strong);
-  stroke: none;
-}
-
-.stand-in__bead--bundled {
-  fill: var(--ink-soft);
-  stroke: none;
-}
-
-.stand-in__part {
-  opacity: 0.25;
-  transition: opacity var(--dur) var(--ease);
-}
-
-.stand-in__part[data-on] {
-  opacity: 1;
-}
-
-/* ------------------------------------------------------- without a stage -- */
-/* Scroll tracks exist to give the stage time: a chapter's dwell is the stage
-   playing its event. With no stage there is nothing to wait for, so the
-   tracks collapse and the page becomes a continuous illustrated document —
-   the plates and the flat figures carry the pictures. Attribute plus class
-   outranks every layout rule below, at every width. */
-:root[data-stage='unavailable'] .beat {
-  min-height: 0;
-  padding-block: var(--s-3);
-}
-
-:root[data-stage='unavailable'] .chapter {
-  display: block;
-  height: auto;
-  min-height: 0;
-  padding-bottom: 0;
-}
-
-:root[data-stage='unavailable'] .chapter__sticky {
-  position: static;
-  height: auto;
-  padding-block: var(--s-4);
-}
-
-:root[data-stage='unavailable'] .chapter__panel {
-  max-height: none;
-  overflow: visible;
-}
-
-/* --------------------------------------------------------------- legend ---- */
-.legend {
-  position: relative;
-  z-index: 1;
-  padding: var(--s-8) 0;
-  background: var(--paper);
-  border-top: 1px solid var(--hairline);
-}
-
-.legend__inner {
-  max-width: var(--max-page);
   margin: 0 auto;
-  padding: 0 var(--gutter);
 }
 
-.legend__title {
-  color: var(--ink-muted);
-}
-
-.legend__note {
-  margin-top: var(--s-3);
-  max-width: 26rem;
-  font-family: var(--font-serif);
-  font-size: var(--t-lead);
-  line-height: 1.4;
-  text-wrap: pretty;
-}
-
-.legend__list {
-  margin-top: var(--s-6);
-  display: grid;
-  border-top: 1px solid var(--hairline-strong);
-}
-
-.legend__item {
-  display: grid;
-  grid-template-columns: 3rem minmax(0, 1fr);
-  column-gap: var(--s-4);
-  align-items: center;
-  padding: var(--s-3) 0;
-  border-bottom: 1px solid var(--hairline);
-}
-
-.legend__item dt {
-  display: contents;
-}
-
-.legend__item dt > span {
-  grid-column: 2;
-  font-weight: 650;
-  letter-spacing: -0.005em;
-}
-
-.legend__item dt > .glyph {
-  grid-row: 1 / span 2;
-  width: 3rem;
-  height: 3rem;
-  padding: var(--s-1);
-  border-radius: var(--radius-lg);
-  background: var(--plate-bg);
-}
-
-.legend__facts {
-  margin-top: var(--s-6);
-  display: grid;
-  grid-template-columns: auto auto 1fr;
-  border-top: 1px solid var(--hairline-strong);
-}
-
-.legend__facts > div {
-  padding: var(--s-3) var(--s-4) 0 0;
-}
-
-.legend__facts > div + div {
-  padding-left: var(--s-4);
-  border-left: 1px solid var(--hairline);
-}
-
-.legend__facts dt {
-  color: var(--ink-muted);
-}
-
-.legend__facts dd {
-  margin: var(--s-1) 0 0;
-  font-family: var(--font-display);
-  font-size: var(--t-body);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-}
-
-.legend__item dd {
-  grid-column: 2;
-  margin: 0;
-  font-size: var(--t-small);
-  line-height: 1.45;
-  color: var(--ink-muted);
-  text-wrap: pretty;
-}
-
-/* ----------------------------------------------------------- act break ---- */
-.act-break {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  align-content: center;
-  /* A held breath, not a blank screen: on a phone the break is just tall
-     enough to read as a pause. */
-  min-height: 56svh;
-  padding: calc(var(--header-h) + var(--s-6)) var(--gutter) var(--s-8);
-}
-
-.act-break__inner {
-  max-width: 30rem;
-}
-
-.act-break__numeral {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-3);
-  font-family: var(--font-serif);
-  font-size: var(--t-numeral);
-  font-weight: 400;
-  line-height: 0.9;
-  letter-spacing: -0.02em;
-  color: var(--act-accent, var(--c-data));
-}
-
-.act-break__word {
-  font-family: var(--font-sans);
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: var(--track-caps);
-  text-transform: uppercase;
-  color: var(--ink-muted);
-}
-
-.act-break__title {
-  margin-top: var(--s-5);
-  font-family: var(--font-display);
-  font-size: var(--t-h2);
-  line-height: var(--lh-title);
-  letter-spacing: var(--track-title);
-  font-weight: 680;
-  text-wrap: balance;
-}
-
-.act-break__premise {
-  margin-top: var(--s-3);
-  font-family: var(--font-serif);
-  font-size: var(--t-lead);
-  line-height: 1.4;
-  color: var(--ink-soft);
-  text-wrap: pretty;
-}
-
-.act-break__ahead {
-  margin-top: var(--s-6);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2) var(--s-5);
-  padding-top: var(--s-3);
-  border-top: 1px solid var(--hairline-strong);
-  font-size: var(--t-small);
-  font-weight: 600;
-}
-
-.act-break__label {
-  margin-right: var(--s-2);
-  font-family: var(--font-mono);
-  font-weight: 400;
-  color: var(--ink-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-/* -------------------------------------------------------------- chapter ---- */
-/* On a phone the chapter is NOT a sticky panel. Measured at 375x667, the
-   always-visible copy of every chapter is taller than the screen, so a pinned
-   panel could only work by scrolling internally — a nested scroller on the
-   device where it hurts most. Instead the track opens with a window onto the
-   fixed stage (show, then explain), and the card rises over it on the page's
-   own scroll, at its full length. From 768px up there is room to pin the
-   panel, and the sticky mechanism takes over. See docs/ARCHITECTURE.md. */
-.chapter {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  align-content: end;
-  /* The scroll track. Its length is what gives the chapter its dwell; the
-     stage window above the card absorbs whatever the copy does not fill. */
-  min-height: calc(var(--track, 3) * 100svh);
-  padding-bottom: var(--s-7);
-}
-
-.chapter__sticky {
-  padding: 0 var(--s-2);
-}
-
-.chapter__panel {
-  padding: var(--s-3) var(--s-4) var(--s-5);
-  border: 1px solid var(--sheet-border);
-  border-radius: var(--radius-sheet);
-  background: var(--sheet-bg);
-  backdrop-filter: var(--sheet-blur);
-  -webkit-backdrop-filter: var(--sheet-blur);
-  box-shadow: var(--shadow-lift);
-}
-
-/* ---------------------------------------------------- chapter: the plate --- */
-/* The still drawing of the chapter's visual event, on a faint drafting grid.
-   The grid is the plate's material: it says "diagram", not "decoration". */
-.chapter__plate {
-  padding: var(--s-1) var(--s-2);
-  border-radius: var(--radius-lg);
-  background-color: var(--plate-bg);
-  background-image: radial-gradient(var(--plate-grid) 1px, transparent 1.2px);
-  background-size: 12px 12px;
-  background-position: 6px 6px;
-}
-
-.plate {
-  width: 100%;
-  height: auto;
-  overflow: visible;
-}
-
-.chapter__eyebrow {
-  margin-top: var(--s-4);
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-3);
-}
-
-.chapter__label {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  color: var(--ink-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.chapter__stage {
-  color: var(--act-accent, var(--c-data));
-}
-
-.chapter__act {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-weight: 500;
-  color: var(--ink-muted);
-  letter-spacing: 0.2em;
-}
-
-.chapter__title {
-  margin-top: var(--s-2);
-  font-family: var(--font-display);
-  font-size: var(--t-h2);
-  line-height: var(--lh-title);
-  letter-spacing: var(--track-title);
-  font-weight: 680;
-  text-wrap: balance;
-}
-
-.chapter__kicker {
-  margin-top: var(--s-2);
-  color: var(--ink-muted);
-  text-wrap: pretty;
-}
-
-/* The one sentence to walk away with, in the serif voice. A short accent rule
-   marks it as the chapter's thesis without boxing it in. */
-.chapter__takeaway {
-  margin-top: var(--s-5);
-  font-family: var(--font-serif);
-  font-size: var(--t-lead);
-  line-height: var(--lh-snug);
-  letter-spacing: -0.005em;
-  text-wrap: pretty;
-}
-
-.chapter__takeaway::before {
-  content: '';
-  display: block;
-  width: 1.5rem;
-  height: 2px;
-  margin-bottom: var(--s-3);
-  background: var(--takeaway-accent, var(--act-accent, var(--c-data)));
-}
-
-.chapter__brief {
-  margin-top: var(--s-4);
-  display: grid;
-  gap: var(--s-3);
-  color: var(--ink-soft);
-  text-wrap: pretty;
-}
-
-/* ------------------------------------------------------- chapter: terms ---- */
-/* Defined terms are the Act's own words, so they take the serif voice. */
-.chapter__terms {
-  margin-top: var(--s-5);
-  display: grid;
-  gap: var(--s-3);
-  padding-top: var(--s-4);
-  border-top: 1px solid var(--hairline);
-}
-
-.chapter__term dt {
-  font-family: var(--font-serif);
-  font-size: var(--t-body);
-  font-style: italic;
-}
-
-.chapter__term dd {
-  margin: 2px 0 0;
-  font-size: var(--t-small);
-  line-height: 1.5;
-  color: var(--ink-muted);
-  text-wrap: pretty;
-}
-
-/* ----------------------------------------------------- chapter: caution ---- */
-.chapter__caution {
-  margin-top: var(--s-5);
-  padding: var(--s-3) var(--s-4);
-  border-left: 2px solid var(--c-withdraw);
-  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-  background: var(--wash-withdraw);
-  font-size: var(--t-small);
-  line-height: 1.5;
-  color: var(--ink-soft);
-  text-wrap: pretty;
-}
-
-.chapter__caution-label {
-  display: block;
-  margin-bottom: var(--s-1);
-  color: var(--c-withdraw);
-}
-
-/* --------------------------------- chapter: disclosures (depth and key) ---- */
-.chapter__depth,
-.chapter__key {
-  font-size: var(--t-small);
-}
-
-.chapter__depth {
-  margin-top: var(--s-4);
-  border-top: 1px solid var(--hairline);
-}
-
-.chapter__depth > summary,
-.chapter__key > summary {
-  cursor: pointer;
-  list-style: none;
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  /* A comfortable touch target on a phone. */
-  min-height: 44px;
-  font-weight: 600;
-  color: var(--ink-soft);
-}
-
-.chapter__depth > summary::-webkit-details-marker,
-.chapter__key > summary::-webkit-details-marker {
-  display: none;
-}
-
-.chapter__depth > summary::before,
-.chapter__key > summary::before {
-  content: '+';
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 1.375rem;
-  height: 1.375rem;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 50%;
-  font-family: var(--font-mono);
-  font-weight: 400;
-  line-height: 1;
-  color: var(--ink-muted);
-}
-
-.chapter__depth[open] > summary::before,
-.chapter__key[open] > summary::before {
-  content: '–';
-}
-
-.chapter__depth ul {
-  margin: var(--s-1) 0 var(--s-3);
-  display: grid;
-  gap: var(--s-2);
-  color: var(--ink-soft);
-}
-
-.chapter__depth li {
-  padding-left: var(--s-5);
-  position: relative;
-  line-height: 1.5;
-  text-wrap: pretty;
-}
-
-.chapter__depth li::before {
-  content: '';
-  position: absolute;
-  left: 0.375rem;
-  top: 0.7em;
-  width: 7px;
-  height: 1px;
-  background: var(--hairline-strong);
-}
-
-/* ------------------------------------------------------ chapter: visual ---- */
-.chapter__visual {
-  margin-top: var(--s-4);
-  padding-top: var(--s-4);
-  border-top: 1px solid var(--hairline);
-  font-size: var(--t-small);
-  line-height: 1.5;
-  color: var(--ink-muted);
-  text-wrap: pretty;
-}
-
-.chapter__visual > figcaption {
-  display: flex;
-  gap: var(--s-3);
-  margin-bottom: var(--s-2);
-}
-
-.chapter__fig {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  color: var(--ink);
-}
-
-.chapter__key {
-  margin-top: var(--s-1);
-}
-
-.chapter__key dl {
-  margin-bottom: var(--s-2);
-  display: grid;
-  gap: var(--s-2);
-}
-
-.chapter__key dt {
-  font-weight: 600;
-  color: var(--ink-soft);
-}
-
-.chapter__key dd {
-  margin: 0;
-}
-
-/* -------------------------------------------------------- moment: action -- */
-/* The story's one real control. Large, full width on a phone, in the
-   withdrawal tone: it is the same size of act as the yes was. */
-.action {
-  margin-top: var(--s-4);
-}
-
-.action__button {
-  display: block;
-  width: 100%;
-  min-height: 3rem;
-  padding: var(--s-3) var(--s-5);
-  border: 1.5px solid var(--c-withdraw);
-  border-radius: 999px;
-  background: var(--c-withdraw);
-  color: var(--paper-raised);
-  font: inherit;
-  font-family: var(--font-display);
-  font-weight: 650;
-  letter-spacing: -0.005em;
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
-}
-
-.action__button:hover:not(:disabled) {
-  background: transparent;
-  color: var(--c-withdraw);
-}
-
-.action__button:disabled {
-  background: transparent;
-  color: var(--c-withdraw);
-  cursor: default;
-}
-
-.action__hint {
-  margin-top: var(--s-2);
-  font-size: var(--t-small);
-  color: var(--ink-muted);
-  text-align: center;
-}
-
-@media (min-width: 768px) {
-  .action__button {
-    display: inline-block;
-    width: auto;
-  }
-
-  .action__hint {
-    text-align: left;
-  }
-}
-
-/* ------------------------------------------------ chapter: next question -- */
-/* The question a chapter hands to the next one. A heavy rule above it marks
-   the end of this chapter's answer; the question itself is in the site's own
-   voice, because it is ours, not the Act's. */
-.chapter__next {
-  margin-top: var(--s-5);
-  padding-top: var(--s-4);
-  border-top: 1.5px solid var(--ink);
-}
-
-.chapter__next-label {
-  display: block;
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: var(--track-caps);
-  text-transform: uppercase;
-  color: var(--ink-muted);
-}
-
-.chapter__next-question {
-  margin-top: var(--s-2);
-  font-family: var(--font-display);
-  font-size: var(--t-h3);
-  line-height: var(--lh-title);
-  letter-spacing: -0.02em;
-  font-weight: 650;
-  text-wrap: balance;
-}
-
-/* ------------------------------------------------------------ marks ------- */
-/* The visual vocabulary. One rule per concept; every colour is a token, so
-   both schemes come from tokens.css. Colour is reserved for the data and its
-   states — people and organisations are ink. */
-.mk-principal__ring {
-  fill: none;
-  stroke: var(--ink-muted);
-  stroke-width: var(--mk-stroke-fine);
-}
-
-.mk-principal__core {
-  fill: var(--ink);
-}
-
-.mk-datum {
-  fill: var(--c-data);
-  stroke: var(--c-data);
-  stroke-width: var(--mk-stroke);
-  stroke-linejoin: round;
-}
-
-.mk-datum--consented {
-  fill: var(--c-grant);
-  stroke: var(--c-grant);
-}
-
-/* Withdrawn: the same shape, drained. Hollow and dashed, so the state is
-   carried by form as well as by colour. */
-.mk-datum--withdrawn {
-  fill: var(--plate-bg);
-  stroke: var(--c-withdraw);
-  stroke-dasharray: 3 2.5;
-}
-
-.mk-org--fiduciary {
-  fill: var(--ink);
-}
-
-.mk-org--processor {
-  fill: var(--plate-bg);
-  stroke: var(--ink);
-  stroke-width: 1.25;
-  stroke-dasharray: 3 2;
-}
-
-.mk-purpose {
-  fill: none;
-  stroke: var(--c-purpose);
-  stroke-width: 1.75;
-  stroke-linecap: square;
-}
-
-.mk-strict {
-  fill: var(--wash-withdraw);
-  stroke: var(--c-withdraw);
-  stroke-width: 1.25;
-}
-
-.mk-strict--inner {
-  fill: none;
-  stroke-width: var(--mk-stroke-fine);
-}
-
-.mk-route {
-  fill: none;
-  stroke-width: 1.75;
-  stroke-linecap: round;
-}
-
-.mk-route--open {
-  stroke: var(--ink-muted);
-  stroke-dasharray: 4 3;
-}
-
-.mk-route--travelled {
-  stroke: var(--ink-soft);
-}
-
-.mk-route--consented {
-  stroke: var(--c-grant);
-  stroke-width: 2;
-}
-
-/* Declined but open: still drawn the whole way, so declining reads as a
-   supported answer rather than a dead end. */
-.mk-route--declined {
-  stroke: var(--ink-muted);
-  stroke-dasharray: 5 3.5;
-}
-
-.mk-route--faint {
-  stroke: var(--hairline-strong);
-  stroke-width: 1.25;
-  stroke-dasharray: 2 3;
-}
-
-.mk-stop {
-  fill: none;
-  stroke: var(--c-withdraw);
-  stroke-width: 2.25;
-  stroke-linecap: round;
-}
-
-.mk-station {
-  stroke-width: var(--mk-stroke);
-}
-
-.mk-station--pass {
-  fill: var(--c-grant);
-  stroke: var(--c-grant);
-}
-
-.mk-station--refuse {
-  fill: var(--plate-bg);
-  stroke: var(--c-withdraw);
-}
-
-.mk-station--dark {
-  fill: var(--ink);
-  stroke: var(--ink);
-}
-
-.mk-station--held {
-  fill: var(--plate-bg);
-  stroke: var(--c-grant);
-  stroke-dasharray: 2 2;
-}
-
-.mk-record__slip {
-  fill: var(--paper-raised);
-  stroke: var(--ink);
-  stroke-width: 1.25;
-}
-
-.mk-record__rule {
-  fill: none;
-  stroke: var(--ink-muted);
-  stroke-width: var(--mk-stroke-fine);
-}
-
-.mk-endpoint {
-  fill: var(--plate-bg);
-  stroke: var(--ink);
-  stroke-width: 1.25;
-}
-
-.mk-link {
-  fill: none;
-  stroke: var(--ink-soft);
-  stroke-width: var(--mk-stroke-fine);
-}
-
-.mk-link--dashed {
-  stroke: var(--ink-muted);
-  stroke-dasharray: 3 3;
-}
-
-.mk-sheet {
-  fill: var(--paper-raised);
-  stroke: var(--hairline-strong);
-  stroke-width: var(--mk-stroke-fine);
-}
-
-.mk-holder {
-  fill: var(--paper-raised);
-  stroke: var(--ink-soft);
-  stroke-width: 1.25;
-  stroke-linejoin: round;
-}
-
-.mk-duties {
-  fill: none;
-  stroke: var(--ink-muted);
-  stroke-width: var(--mk-stroke-fine);
-  stroke-dasharray: 2 3;
-}
-
-.mk-node {
-  fill: var(--ink);
-}
-
-.mk-label {
-  font-family: var(--font-mono);
-  font-size: 8.5px;
-  letter-spacing: 0.03em;
-  fill: var(--ink-muted);
-}
-
-.mk-label--strong {
-  font-family: var(--font-sans);
-  font-size: 9.5px;
-  font-weight: 650;
-  letter-spacing: 0;
-  fill: var(--ink);
-}
-
-/* In the legend and the header the glyph sits on paper, not on a plate. */
-.glyph,
-.site-header__glyph {
-  display: block;
-  overflow: visible;
-}
-
-/* ---------------------------------------------------------------- index ---- */
-.index__inner {
-  max-width: var(--max-page);
-  margin: 0 auto;
-  padding: 0 var(--gutter);
-}
-
-.index__eyebrow {
-  color: var(--ink-muted);
-}
-
-.index__title {
-  margin-top: var(--s-3);
-  font-family: var(--font-display);
-  font-size: var(--t-h2);
-  line-height: var(--lh-title);
-  letter-spacing: var(--track-title);
-  font-weight: 680;
-  text-wrap: balance;
-}
-
-.index {
-  position: relative;
-  z-index: 1;
-  padding: var(--s-9) 0;
-  background: var(--paper-sunken);
-  border-top: 1px solid var(--hairline);
-}
-
-.index__acts {
-  margin-top: var(--s-7);
-  display: grid;
-  gap: var(--s-7);
-}
-
-.index__act-title {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-3);
-  padding-bottom: var(--s-3);
-  border-bottom: 1.5px solid var(--ink);
-  font-size: var(--t-micro);
-  font-weight: 600;
-  letter-spacing: var(--track-caps);
-  text-transform: uppercase;
-}
-
-.index__act-numeral {
-  font-family: var(--font-serif);
-  font-size: var(--t-h3);
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--act-accent, var(--ink-muted));
-}
-
-.index__chapters {
-  display: grid;
-}
-
-.index__chapters li {
-  border-bottom: 1px solid var(--hairline);
-}
-
-.index__link {
-  display: flex;
-  gap: var(--s-4);
-  padding: var(--s-4) 0;
-  text-decoration: none;
-}
-
-.index__label {
-  flex: none;
-  min-width: 2ch;
-  font-family: var(--font-mono);
-  font-size: var(--t-small);
-  color: var(--ink-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.index__text {
-  display: grid;
-  gap: var(--s-1);
-}
-
-.index__chapter-title {
-  font-family: var(--font-display);
-  font-weight: 650;
-  letter-spacing: -0.012em;
-  line-height: var(--lh-snug);
-}
-
-.index__takeaway {
-  font-family: var(--font-serif);
-  font-size: var(--t-small);
-  line-height: 1.5;
-  color: var(--ink-soft);
-  text-wrap: pretty;
-}
-
-.index__link:hover .index__chapter-title {
-  color: var(--c-data);
-}
-
-/* -------------------------------------------------------- canvas notice ---- */
-.canvas-notice {
-  position: relative;
-  z-index: 1;
-  max-width: var(--max-page);
-  margin: 0 auto;
-  padding: var(--s-5) var(--gutter);
-  color: var(--ink-muted);
-  font-size: var(--t-small);
-}
-
-/* ------------------------------------------------------------- colophon ---- */
-.colophon {
-  position: relative;
-  z-index: 1;
-  padding: var(--s-9) 0 calc(var(--s-9) + env(safe-area-inset-bottom, 0px));
-  background: var(--paper);
-  border-top: 1px solid var(--hairline);
-}
-
-.colophon__inner {
-  max-width: var(--max-page);
-  margin: 0 auto;
-  padding: 0 var(--gutter);
-  display: grid;
-  gap: var(--s-4);
-  color: var(--ink-soft);
-}
-
-.colophon__title {
-  font-family: var(--font-display);
-  font-size: var(--t-h3);
-  letter-spacing: -0.02em;
-  font-weight: 650;
-  color: var(--ink);
-}
-
-.colophon p {
-  max-width: var(--measure);
-  text-wrap: pretty;
-}
-
-.colophon__legal {
-  font-size: var(--t-small);
-  line-height: 1.55;
-  color: var(--ink-muted);
-}
-
-/* ------------------------------------------------------- act accents ------ */
-/* One accent per act, so position in the story is legible without reading the
-   numeral. Accents are drawn from the data's states, in story order: the data
-   itself, the purpose that bounds it, consent, its consequences, and the
-   stricter rule. Defined on the section so the panel and the act break both
-   inherit. */
-[data-act='subject'] {
-  --act-accent: var(--c-data);
-}
-[data-act='basis'] {
-  --act-accent: var(--c-purpose);
-}
-[data-act='choice'] {
-  --act-accent: var(--c-grant);
-}
-[data-act='consequence'] {
-  --act-accent: var(--c-grant);
-}
-[data-act='obligation'] {
-  --act-accent: var(--c-data);
-}
-[data-act='stricter'] {
-  --act-accent: var(--c-withdraw);
-}
-[data-act='whole'] {
-  --act-accent: var(--ink);
-}
-
-/* --------------------------------------------------- visual treatments ---- */
-/* `data-treatment` is the chapter's declared visual treatment. Presentation maps
-   it; content does not know about this. The plate draws each one; here they
-   adjust emphasis only. */
-.chapter[data-treatment='threshold'],
-.chapter[data-treatment='reverse'] {
-  --takeaway-accent: var(--c-withdraw);
-}
-
-.chapter[data-treatment='affirm'],
-.chapter[data-treatment='ledger'],
-.chapter[data-treatment='split'] {
-  --takeaway-accent: var(--c-grant);
-}
-
-.chapter[data-treatment='frame'] {
-  --takeaway-accent: var(--c-purpose);
+:root[data-stage='unavailable'] .hero .stand-in,
+:root[data-stage='lost'] .hero .stand-in {
+  max-width: 6rem;
+  margin: 0 0 var(--s-5);
 }
 
 /* ------------------------------------------------------------ 768px up ----- */
-/* Tablet: there is room to pin the panel, so the sticky mechanism takes over.
-   The panel stays a card, now floating over the stage. */
+/* The card moves to the left; the picture takes the space to its right. */
 @media (min-width: 768px) {
-  .chapter--moments .chapter__plate {
-    display: block;
+  :root {
+    --card-w: 22rem;
+    --window-top: var(--header-h);
+    --window-h: calc(100svh - var(--header-h));
+  }
+
+  .stage-window {
+    left: calc(var(--gutter) + var(--card-w) + var(--s-4));
+    right: 3.5rem;
+  }
+
+  .hero {
+    align-items: center;
+    padding: var(--header-h) var(--gutter) var(--s-6);
   }
 
   .hero__inner {
-    grid-template-rows: 1fr auto auto auto auto auto;
-  }
-
-  .hero .stand-in {
-    grid-row: 1;
-  }
-
-  .hero__eyebrow {
-    grid-row: 2;
+    max-width: var(--card-w);
   }
 
   .hero__title {
-    grid-row: 3;
+    font-size: clamp(3.5rem, 2rem + 4vw, 6rem);
   }
 
-  .hero__lead {
-    grid-row: 4;
-    margin-top: var(--s-5);
-  }
-
-  .hero__disclaimer {
-    grid-row: 5;
-  }
-
-  .hero__hint {
-    grid-row: 6;
+  .station {
     display: flex;
     align-items: center;
-    gap: var(--s-3);
-    margin-top: var(--s-6);
-    color: var(--ink-muted);
+    padding: calc(var(--header-h) + var(--s-6)) var(--gutter) var(--s-6);
   }
 
-  .beat {
-    padding: calc(var(--header-h) + var(--s-5)) var(--gutter) var(--s-7);
-  }
-
-  .beat__card {
-    max-width: 30rem;
-    padding: var(--s-5) var(--s-6);
-  }
-
-  .legend__list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: var(--s-6);
-  }
-
-  .chapter {
+  .route {
     display: block;
-    /* Block containers honour align-content now; the sticky viewport must
-       start at the top of its track. */
-    align-content: normal;
-    min-height: 0;
-    height: calc(var(--track, 3) * 100svh);
-    padding-bottom: 0;
+    position: fixed;
+    right: var(--s-4);
+    top: 50%;
+    z-index: 15;
+    transform: translateY(-50%);
   }
 
-  .chapter__sticky {
-    position: sticky;
-    top: 0;
+  .route ol {
     display: grid;
-    align-content: end;
-    height: 100svh;
-    padding: calc(var(--header-h) + var(--s-5)) var(--gutter) var(--s-6);
-    /* The panel itself is interactive; the empty space around it is not, so
-       the 3D layer behind stays visible and the page stays scrollable
-       everywhere. */
-    pointer-events: none;
+    gap: var(--s-1);
   }
 
-  .chapter__panel {
-    pointer-events: auto;
-    max-width: 36rem;
-    /* Safety valve, not the storytelling mechanism. The always-visible content
-       fits a pinned panel at these sizes, so this normally does nothing. It
-       engages only when a reader opens a disclosure or the viewport is
-       unusually short, and it overflows rather than clipping the text.
-       Overscroll chaining is left at its default so a swipe continues into
-       the page scroll at the end — the panel must never become a scroll trap. */
-    max-height: calc(100svh - var(--header-h) - var(--s-5) - var(--s-6));
-    overflow-y: auto;
-    padding: var(--s-5) var(--s-6);
+  .route a {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--s-3);
+    min-height: 32px;
+    text-decoration: none;
   }
 
-  .act-break {
-    min-height: 78svh;
+  .route__label {
+    opacity: 0;
+    translate: 6px 0;
+    transition: opacity var(--dur-fast) var(--ease), translate var(--dur-fast) var(--ease);
   }
 
+  .route a:hover .route__label,
+  .route a:focus-visible .route__label,
+  .route a[aria-current] .route__label {
+    opacity: 1;
+    translate: 0 0;
+  }
 
+  .route a[aria-current] .route__label {
+    color: var(--ink);
+  }
+
+  .route__dot {
+    position: relative;
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid var(--ink-muted);
+    border-radius: 3px;
+    transform: rotate(45deg);
+  }
+
+  .route__fill {
+    position: absolute;
+    inset: -1.5px;
+    border-radius: 3px;
+    background: var(--c-data);
+  }
+
+  .sheet__panel {
+    inset: 0 0 0 auto;
+    width: min(40rem, 92vw);
+    max-height: none;
+    border-radius: var(--radius-sheet) 0 0 var(--radius-sheet);
+  }
 }
 
 /* ----------------------------------------------------------- 1024px up ----- */
-/* Desktop: the card dissolves into a hairline-ruled editorial column beside
-   the stage, and the rail becomes a real table of contents. */
 @media (min-width: 1024px) {
   :root {
-    --gutter: clamp(2rem, 4.5vw, 5rem);
-    --header-h: 4.5rem;
+    --card-w: 27rem;
   }
 
-  .counter {
-    display: none;
+  .stage-window {
+    left: calc(var(--gutter) + var(--card-w) + var(--s-6));
+    right: 5rem;
   }
 
-  .rail {
-    display: block;
-    position: fixed;
-    z-index: 20;
-    top: 50%;
-    right: var(--gutter);
-    transform: translateY(-50%);
-    max-height: 86svh;
+  .card {
+    padding: var(--s-6);
   }
 
-  .rail__acts {
-    display: grid;
-    gap: var(--s-3);
-    text-align: right;
+  .card .control,
+  .card__points {
+    order: 0;
   }
 
-  .rail__act-title {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--s-2);
-    font-size: var(--t-micro);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--hairline-strong);
-    transition: color var(--dur-fast) var(--ease);
-  }
-
-  .rail__act[data-current] .rail__act-title {
-    color: var(--ink-muted);
-  }
-
-  .rail__act-numeral {
-    font-family: var(--font-mono);
-  }
-
-  .rail__list {
-    display: grid;
-    margin-top: 1px;
-  }
-
-  .rail__link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--s-3);
-    padding: 2px 0;
-    text-decoration: none;
-    font-size: var(--t-micro);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink-muted);
-    transition: color var(--dur-fast) var(--ease);
-  }
-
-  .rail__label {
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    opacity: 0.55;
-  }
-
-  .rail__stage {
-    min-width: 8ch;
-    text-align: right;
-  }
-
-  /* The active entry carries the data mark's colour: you are here. */
-  .rail__link::after {
-    content: '';
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--hairline-strong);
-    transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
-  }
-
-  .rail__link:hover {
-    color: var(--ink);
-  }
-
-  .rail__link[data-active] {
-    color: var(--ink);
-    font-weight: 650;
-  }
-
-  .rail__link[data-active]::after {
-    background: var(--c-data);
-    transform: scale(1.5);
-  }
-
-  .beat {
-    align-content: center;
-  }
-
-  /* As with the chapters: on a wide screen the words are a ruled column
-     beside the stage, not a card on top of it. */
-  .beat__card {
-    max-width: 26rem;
-    padding: var(--s-2) 0 var(--s-2) var(--s-6);
-    border: 0;
-    border-left: 1px solid var(--hairline-strong);
-    border-radius: 0;
-    background: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    box-shadow: none;
-  }
-
-  .hero,
-  .beat,
-  .act-break,
-  .chapter__sticky {
-    /* Keep the text column clear of the rail. */
-    padding-right: calc(var(--gutter) + 14ch);
-  }
-
-  .hero__inner {
-    max-width: 44rem;
-  }
-
-  .hero__lead {
-    max-width: 34rem;
-  }
-
-  .legend__list {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .legend__item {
-    grid-template-columns: minmax(0, 1fr);
-    align-content: start;
-    row-gap: var(--s-2);
-    padding: var(--s-5) var(--s-5) var(--s-5) 0;
-  }
-
-  .legend__item dt > .glyph,
-  .legend__item dt > span,
-  .legend__facts {
-  margin-top: var(--s-6);
-  display: grid;
-  grid-template-columns: auto auto 1fr;
-  border-top: 1px solid var(--hairline-strong);
-}
-
-.legend__facts > div {
-  padding: var(--s-3) var(--s-4) 0 0;
-}
-
-.legend__facts > div + div {
-  padding-left: var(--s-4);
-  border-left: 1px solid var(--hairline);
-}
-
-.legend__facts dt {
-  color: var(--ink-muted);
-}
-
-.legend__facts dd {
-  margin: var(--s-1) 0 0;
-  font-family: var(--font-display);
-  font-size: var(--t-body);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-}
-
-.legend__item dd {
-    grid-column: 1;
-    grid-row: auto;
-  }
-
-  .chapter__sticky {
-    align-content: center;
-    padding-top: var(--header-h);
-    padding-bottom: var(--s-6);
-  }
-
-  .chapter__panel {
-    /* On a wide screen the panel is a column in a layout, not a floating card. */
-    max-width: 31rem;
-    max-height: calc(100svh - var(--header-h) - var(--s-6));
-    padding: var(--s-2) 0 var(--s-2) var(--s-6);
-    background: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    box-shadow: none;
-    border: 0;
-    border-left: 1px solid var(--hairline-strong);
-    border-radius: 0;
-  }
-
-  .chapter__plate {
-    margin: 0;
-  }
-
-  /* Beside a full-height stage the plate is a reference, not the picture:
-     cap it so the column keeps its words in view. */
-  .plate {
-    max-height: 8.5rem;
-  }
-
-  .index__link {
-    gap: var(--s-6);
-  }
-
-  .index__text {
-    grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
-    gap: var(--s-5);
-    align-items: baseline;
+  .card__title {
+    font-size: clamp(2rem, 1.4rem + 1.2vw, 2.6rem);
   }
 }
 
 /* ----------------------------------------------------------- 1280px up ----- */
 @media (min-width: 1280px) {
-  .chapter__panel {
-    max-width: 33rem;
-  }
-
-}
-
-/* On a short landscape phone, trade the optional blocks for breathing room. */
-@media (max-height: 560px) {
-  .chapter__sticky {
-    align-content: end;
-    padding-top: var(--s-6);
-    padding-bottom: var(--s-5);
-  }
-
-  .chapter__plate,
-  .chapter__visual,
-  .chapter__terms {
-    display: none;
-  }
-
-  .chapter__eyebrow {
-    margin-top: 0;
+  :root {
+    --gutter: 3rem;
+    --card-w: 29rem;
   }
 }
