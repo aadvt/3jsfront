@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { Edges, Line } from '@react-three/drei'
 import type { Group } from 'three'
 import { useChoices } from '../../state/journey'
-import { Bead, Board, Fiduciary, Flow, Part, Person, PurposeFrame, Reveal, Slip, Tag, useColors } from '../kit'
+import { Bead, Board, Fiduciary, Flow, Focus, Part, Person, PurposeFrame, Reveal, Slip, Tag, useColors } from '../kit'
 import { stage } from '../presence'
 
 type Vec3 = [number, number, number]
@@ -24,54 +24,64 @@ const around = (centre: Vec3, r: number, k: number, n: number, start = Math.PI /
  * ring of six rights, each a thing you can do. Around the fiduciary, its ring
  * of duties, with consent handling one node of seven, and below it a dashed
  * bracket of extra duties only for designated Significant Data Fiduciaries.
- * The camera turns to whichever end the reader picks.
+ * The camera turns to whichever end the reader picks. On a phone, each end
+ * is shown on its own (see `Focus`): your end runs up to your data, the
+ * fiduciary's end runs from it.
  */
 export function Rights() {
   const c = useColors()
   const view = useChoices((s) => s.selection.rights)
   return (
     <>
-      <Reveal order={1}>
-        <Part id="you" label="You" position={YOU}>
-          <Person />
-        </Part>
-        <Flow points={[[YOU[0] + 0.4, 0, 0], [-0.33, 0, 0]]} color={c.data} width={1.8} />
-        <Flow points={[[0.33, 0, 0], [ORG[0] - 0.4, ORG[1], 0]]} color={c.inkSoft} width={1.8} />
-      </Reveal>
+      <Focus view="rights" at={YOU}>
+        <Reveal order={1}>
+          <Part id="you" label="You" position={YOU}>
+            <Person />
+          </Part>
+          <Flow points={[[YOU[0] + 0.4, 0, 0], [-0.33, 0, 0]]} color={c.data} width={1.8} />
+        </Reveal>
 
-      <Reveal order={2}>
-        <Ring centre={YOU} radius={1.15} labels={RIGHTS} live={view === 'rights'} tone={c.data}>
-          {(k) => <RightTool k={k} />}
-        </Ring>
-      </Reveal>
+        <Reveal order={2}>
+          <Ring centre={YOU} radius={1.15} labels={RIGHTS} live={view === 'rights'} tone={c.data}>
+            {(k) => <RightTool k={k} />}
+          </Ring>
+        </Reveal>
+        {view !== 'duties' ? <Tag position={[YOU[0], YOU[1] - 0.52, 0]} strong>You</Tag> : null}
+      </Focus>
 
-      <Reveal order={3}>
-        <Part id="fiduciary" label="Data Fiduciary" position={ORG}>
-          <Fiduciary size={0.55} />
-        </Part>
-        <Ring centre={ORG} radius={1.22} labels={DUTIES} live={view === 'duties'} tone={c.ink}>
-          {(k) => <DutyNode k={k} />}
-        </Ring>
-      </Reveal>
+      <Focus view="duties" at={ORG}>
+        <Reveal order={1}>
+          <Flow points={[[0.33, 0, 0], [ORG[0] - 0.4, ORG[1], 0]]} color={c.inkSoft} width={1.8} />
+        </Reveal>
 
-      <Reveal order={4} position={[ORG[0], -1.95, 0]}>
-        <Line
-          points={[[-1.1, 0.35, 0], [-1.1, -0.35, 0], [1.1, -0.35, 0], [1.1, 0.35, 0], [-1.1, 0.35, 0]]}
-          color={c.inkMuted}
-          lineWidth={1.4}
-          dashed
-          dashSize={0.08}
-          gapSize={0.07}
-        />
-        {[-0.6, 0, 0.6].map((x) => (
-          <mesh key={x} position={[x, 0, 0]}>
-            <octahedronGeometry args={[0.11]} />
-            <meshStandardMaterial color={c.inkSoft} />
-          </mesh>
-        ))}
-        {view === 'duties' ? <Tag position={[0, -0.62, 0]}>Significant Data Fiduciaries only</Tag> : null}
-      </Reveal>
-      {view === 'duties' ? <Tag position={[ORG[0], ORG[1] - 0.48, 0]} strong>Data Fiduciary</Tag> : <Tag position={[YOU[0], YOU[1] - 0.52, 0]} strong>You</Tag>}
+        <Reveal order={3}>
+          <Part id="fiduciary" label="Data Fiduciary" position={ORG}>
+            <Fiduciary size={0.55} />
+          </Part>
+          <Ring centre={ORG} radius={1.22} labels={DUTIES} live={view === 'duties'} tone={c.ink}>
+            {(k) => <DutyNode k={k} />}
+          </Ring>
+        </Reveal>
+
+        <Reveal order={4} position={[ORG[0], -1.95, 0]}>
+          <Line
+            points={[[-1.1, 0.35, 0], [-1.1, -0.35, 0], [1.1, -0.35, 0], [1.1, 0.35, 0], [-1.1, 0.35, 0]]}
+            color={c.inkMuted}
+            lineWidth={1.4}
+            dashed
+            dashSize={0.08}
+            gapSize={0.07}
+          />
+          {[-0.6, 0, 0.6].map((x) => (
+            <mesh key={x} position={[x, 0, 0]}>
+              <octahedronGeometry args={[0.11]} />
+              <meshStandardMaterial color={c.inkSoft} />
+            </mesh>
+          ))}
+          {view === 'duties' ? <Tag position={[0, -0.62, 0]}>Significant Data Fiduciaries only</Tag> : null}
+        </Reveal>
+        {view === 'duties' ? <Tag position={[ORG[0], ORG[1] - 0.48, 0]} strong>Data Fiduciary</Tag> : null}
+      </Focus>
     </>
   )
 }

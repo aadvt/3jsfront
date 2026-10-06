@@ -35,7 +35,7 @@ viewport-per-moment scroll.
 | `src/content/stations.ts` | The eight stations: compact copy, the interactive control's options and result texts, and the chapters each condenses. |
 | `src/content/chapters.ts` | The full source-derived text (fifteen chapters). The detail sheet renders it. It is still the single source of legal wording. |
 | `src/state/journey.ts` | `journey`: mutable per-frame scroll and pointer state, never React state. `useChoices`: a zustand store for discrete choices, the active station, hover and the open detail sheet. |
-| `src/hooks/useJourneyScroll.ts` | Native scroll → `journey.position` (−1 overview, 0–7 stations, with a hold while each card is read). Lenis smooths the wheel on desktop only. |
+| `src/hooks/useJourneyScroll.ts` | Native scroll → `journey.position` (−1 hero: your data alone, 0–7 stations, with a hold while each card is read). Lenis smooths the wheel on desktop only. |
 | `src/three/layout.ts` | The helix the stations stand on, each station's views (centre and radius to frame), and the thread curve. |
 | `src/three/Rig.tsx` | The camera. It fits each view's sphere into `.stage-window` and offsets the projection to that rectangle's centre. |
 | `src/three/kit.tsx` | The 3D mark vocabulary (Person, Fiduciary, Processor, PurposeFrame, Slip, Board, Stop, Flow, Bead, Halo), plus `Part` (hover/click) and `Tag` (HTML labels). |

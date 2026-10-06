@@ -33,12 +33,22 @@ export interface Placement {
   /** The y the station's plate sits at, locally. */
   floor: number
   views: Record<string, View>
+  /**
+   * Views for the phone's narrow stage, where they differ: more room for
+   * labels that reach past the model's sphere.
+   */
+  narrowViews?: Record<string, View>
   /** Selection key whose value picks the view, if the view can change. */
   viewFrom?: StationId
 }
 
-const views: Record<StationId, { floor: number; views: Record<string, View>; viewFrom?: StationId }> = {
-  people: { floor: -1.75, views: { main: { center: [0, 0.05, 0], radius: 2.55, dir: [0, 0.22, 1] } } },
+const views: Record<StationId, { floor: number; views: Record<string, View>; narrowViews?: Record<string, View>; viewFrom?: StationId }> = {
+  people: {
+    floor: -1.75,
+    views: { main: { center: [0, 0.05, 0], radius: 2.55, dir: [0, 0.22, 1] } },
+    // The fiduciary's labels reach furthest, to the right: room for them.
+    narrowViews: { main: { center: [0.3, 0.05, 0], radius: 2.75, dir: [0, 0.22, 1] } },
+  },
   reason: { floor: -3.2, views: { main: { center: [0, -1.05, 0], radius: 2.55, dir: [0, 0.3, 1] } } },
   consent: { floor: -1.0, views: { main: { center: [-0.55, 1.05, 0], radius: 2.55, dir: [0.12, 0.18, 1] } } },
   purposes: { floor: -3.0, views: { main: { center: [0, -1.05, 0], radius: 2.55, dir: [0, 0.34, 1] } } },
@@ -74,11 +84,25 @@ export const placements: Placement[] = order.map((id, i) => {
   }
 })
 
-/** The whole helix, seen from above and outside: the hero's overview. */
-export const overview = {
-  // The first half of the route, close enough to read; the rest recedes.
-  target: new Vector3(0, -14, 0),
-  radius: 17,
+/** The view a station shows for the reader's current pick, on this layout. */
+export function viewOf(p: Placement, selection: Partial<Record<StationId, string | null>>, narrow: boolean): View {
+  const key = p.viewFrom ? selection[p.viewFrom] ?? Object.keys(p.views)[0] : 'main'
+  const set = narrow && p.narrowViews ? p.narrowViews : p.views
+  return set[key] ?? Object.values(set)[0]
+}
+
+/**
+ * The hero: your data alone and large, where the thread begins. The token is
+ * scaled up rather than the camera moved in, so the camera stands where
+ * station 01 is seen from, outside its model, and the trip down to it is
+ * short and clear of every part. The radius is the scaled token with room for
+ * its swivel and float. The rest of the route is hidden until the reader sets
+ * off.
+ */
+export const hero = {
+  scale: 6,
+  radius: 2.7,
+  dir: [-0.22, 0.16, 1] as [number, number, number],
 }
 
 /** Local → world for a station, without allocating. */

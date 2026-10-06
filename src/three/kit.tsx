@@ -4,6 +4,7 @@ import { Edges, Html, Line, RoundedBox } from '@react-three/drei'
 import type { Group, Mesh } from 'three'
 import type { Line2 } from 'three-stdlib'
 import type { StationId } from '../content/stations'
+import { useNarrow } from '../hooks/useNarrow'
 import type { StageColors } from '../hooks/useStageColors'
 import { useChoices } from '../state/journey'
 import { damp } from '../utils/math'
@@ -25,6 +26,41 @@ export function useColors() {
 /** The station a model belongs to, so parts can reveal and report hovers. */
 export const StationContext = createContext<{ index: number; id: StationId }>({ index: 0, id: 'people' })
 export const useStation = () => useContext(StationContext)
+
+/** False inside a scene a phone has set aside (see `Focus`): its tags hide. */
+const FocusContext = createContext(true)
+
+/**
+ * One of a station's side-by-side scenes, shown when its view is picked. A
+ * desktop shows every scene and turns the camera between them; a phone's
+ * stage is too narrow for the one beside, which would only be cut off at the
+ * edge, so there the scene not picked shrinks away and the picked one grows
+ * in, in the same place the camera already frames.
+ */
+export function Focus({ view, at, children }: { view: string; at: Vec3; children: ReactNode }) {
+  const { id } = useStation()
+  const narrow = useNarrow()
+  const picked = useChoices((s) => s.selection[id] === view)
+  const shown = !narrow || picked
+  const ref = useRef<Group>(null)
+  const size = useRef(shown ? 1 : 0)
+  useFrame((_, dt) => {
+    const g = ref.current
+    if (!g) return
+    const s = approach(size, shown ? 1 : 0, dt, 7)
+    g.scale.setScalar(Math.max(0.0001, s))
+    g.visible = s > 0.002
+  })
+  return (
+    <FocusContext.Provider value={shown}>
+      <group position={at}>
+        <group ref={ref}>
+          <group position={[-at[0], -at[1], -at[2]]}>{children}</group>
+        </group>
+      </group>
+    </FocusContext.Provider>
+  )
+}
 
 type Vec3 = [number, number, number]
 
@@ -113,7 +149,8 @@ export function Part({
 export function Tag({ children, position, strong, tone }: { children: ReactNode; position: Vec3; strong?: boolean; tone?: 'grant' | 'refuse' | 'data' | 'purpose' }) {
   const { index } = useStation()
   const active = useChoices((s) => s.active === index)
-  if (!active) return null
+  const focused = useContext(FocusContext)
+  if (!active || !focused) return null
   return (
     <Html position={position} center zIndexRange={[5, 0]} className="tag-anchor" pointerEvents="none">
       <span className="tag" data-strong={strong || undefined} data-tone={tone} aria-hidden="true">
@@ -395,12 +432,16 @@ export function approach(ref: { current: number }, goal: number, dt: number, lam
 export function Halo({ targets, selected, color, radius = 0.55 }: { targets: Record<string, Vec3>; selected: string | null; color: string; radius?: number }) {
   const ref = useRef<Group>(null)
   const ring = useRef<Mesh>(null)
+  const { index } = useStation()
   useFrame((state, dt) => {
     const g = ref.current
     if (!g) return
     const goal = selected ? targets[selected] : undefined
-    g.visible = Boolean(goal)
+    // It belongs to its station: hidden with it, scaled in as it assembles.
+    const shown = reveal(index, 1)
+    g.visible = Boolean(goal) && shown > 0.002
     if (!goal) return
+    g.scale.setScalar(Math.max(0.0001, shown))
     const k = stage.still ? 1 : 1 - Math.exp(-8 * Math.min(dt, 0.1))
     g.position.x += (goal[0] - g.position.x) * k
     g.position.y += (goal[1] - g.position.y) * k

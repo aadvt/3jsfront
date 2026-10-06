@@ -4,7 +4,7 @@ import { Line, RoundedBox } from '@react-three/drei'
 import { DoubleSide, type Group } from 'three'
 import { useChoices } from '../../state/journey'
 import { clamp01 } from '../../utils/math'
-import { Bead, Board, Checkpoint, Fiduciary, Flow, Part, Person, Reveal, Slip, Stop, Tag, approach, useColors } from '../kit'
+import { Bead, Board, Checkpoint, Fiduciary, Flow, Focus, Part, Person, Reveal, Slip, Stop, Tag, approach, useColors } from '../kit'
 import { stage } from '../presence'
 
 type Vec3 = [number, number, number]
@@ -25,13 +25,18 @@ const M = 5.2
  * monitoring, targeted ads and detrimental processing are stopped at the wall.
  * Right: two holders that look alike, told apart: a registered Consent Manager
  * on your side, accountable to you; a platform inside the organisation, whose
- * line to the Board is stopped. The camera turns to the one the reader picks.
+ * line to the Board is stopped. The camera turns to the one the reader picks
+ * (on a phone, only the picked one is shown: see `Focus`).
  */
 export function Stricter() {
   return (
     <>
-      <Children />
-      <Manager />
+      <Focus view="children" at={[0, 0.35, 0]}>
+        <Children />
+      </Focus>
+      <Focus view="manager" at={[M, 0.25, 0]}>
+        <Manager />
+      </Focus>
     </>
   )
 }

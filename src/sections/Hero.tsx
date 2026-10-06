@@ -10,12 +10,14 @@ const rise = {
 }
 
 /**
- * The title screen. The stage behind it shows the whole route at once: eight
- * stations on one thread, which the reader then travels down.
+ * The title screen. `.hero__visual` is the space left for the picture (above
+ * the words on a phone, beside them on a desktop): the stage frames your data
+ * there, alone and large, before the reader sets off down the route.
  */
 export function Hero() {
   return (
     <section className="hero" id="top" aria-labelledby="hero-title">
+      <div className="hero__visual" aria-hidden="true" />
       <div className="hero__inner">
         <PrologueFigure highlight="all" />
         <motion.p className="hero__eyebrow" initial="hidden" animate="show" custom={0} variants={rise}>

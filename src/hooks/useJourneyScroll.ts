@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import Lenis from 'lenis'
-import { journey, useChoices, wakeJourney } from '../state/journey'
+import { endShowcase, journey, useChoices, wakeJourney } from '../state/journey'
 import { clamp01 } from '../utils/math'
 
 /**
@@ -47,17 +47,28 @@ export function useJourneyScroll() {
 
     const meter = document.querySelector<HTMLElement>('[data-progress]')
     const frame = document.querySelector<HTMLElement>('.stage-window')
+    const heroFrame = document.querySelector<HTMLElement>('.hero__visual')
+    const heroWords = document.querySelector<HTMLElement>('.hero__inner')
     let anchors: number[] = []
+    /** Where each station's card starts, in document pixels. */
+    let cardTops: number[] = []
+    const phone = window.matchMedia('(max-width: 767.98px)')
+    const root = document.documentElement
     let raf = 0
 
     const measure = () => {
       const hero = document.getElementById('top')
       const sections = document.querySelectorAll<HTMLElement>('[data-station]')
       anchors = [hero, ...Array.from(sections)].map((el) => (el ? el.getBoundingClientRect().top + window.scrollY : 0))
+      cardTops = Array.from(sections, (el, i) => anchors[i + 1] + parseFloat(getComputedStyle(el).paddingTop))
       if (frame) {
         const r = frame.getBoundingClientRect()
         journey.window = { x: r.left, y: r.top, width: Math.max(1, r.width), height: Math.max(1, r.height) }
       }
+      const h = heroFrame?.getBoundingClientRect()
+      journey.hero = h && h.width > 1 && h.height > 1
+        ? { x: h.left, y: h.top + window.scrollY, width: h.width, height: h.height }
+        : { x: 0, y: 0, width: 0, height: 0 }
       journey.viewport = { width: window.innerWidth, height: window.innerHeight }
       update()
     }
@@ -65,6 +76,7 @@ export function useJourneyScroll() {
     const update = () => {
       raf = 0
       const y = window.scrollY
+      journey.scrollY = y
       let k = 0
       while (k < anchors.length - 1 && y >= anchors[k + 1]) k++
       let position = k - 1
@@ -74,11 +86,28 @@ export function useJourneyScroll() {
         position += t * t * (3 - 2 * t)
       }
       journey.position = position
+      const active = Math.round(position)
+
+      // On a phone the title is full width: it steps aside as it rises,
+      // before station 01 assembles beside where it was (only when there is
+      // a stage to give way to).
+      if (heroWords && anchors.length > 1) {
+        const stageOn = document.documentElement.dataset.stage === 'available'
+        const heroH = anchors[1] - anchors[0]
+        const fade = stageOn ? clamp01((y - anchors[0] - heroH * 0.03) / (heroH * 0.2)) : 0
+        heroWords.style.opacity = fade > 0 ? String(1 - fade) : ''
+      }
+
+      // On a phone the card is see-through and scrolls up over its model.
+      // While its words are over the model, the model's labels step back so
+      // the two do not tangle; the model itself stays in view.
+      const reading = phone.matches && active >= 0 && cardTops[active] - y < journey.window.y + journey.window.height - 24
+      if (reading !== root.hasAttribute('data-reading')) root.toggleAttribute('data-reading', reading)
+
       const total = Math.max(1, document.documentElement.scrollHeight - window.innerHeight)
       journey.progress = clamp01(y / total)
       if (meter) meter.style.transform = `scaleX(${journey.progress})`
 
-      const active = Math.round(position)
       if (active !== useChoices.getState().active) useChoices.getState().setActive(active)
       wakeJourney()
     }
@@ -93,11 +122,26 @@ export function useJourneyScroll() {
       wakeJourney()
     }
 
+    // A showcase is mirrored on the root for the CSS, and gives way at once
+    // to a tap anywhere or a real scroll.
+    let showcaseFrom = 0
+    const unsubscribe = useChoices.subscribe((state, prev) => {
+      if (state.showcase === prev.showcase) return
+      root.toggleAttribute('data-showcase', state.showcase)
+      showcaseFrom = window.scrollY
+    })
+    const onShowcaseTap = () => endShowcase()
+    const onShowcaseScroll = () => {
+      if (Math.abs(window.scrollY - showcaseFrom) > 40) endShowcase()
+    }
+
     const observer = new ResizeObserver(measure)
     observer.observe(document.body)
     window.addEventListener('scroll', schedule, { passive: true })
     window.addEventListener('resize', measure)
     window.addEventListener('pointermove', onPointer, { passive: true })
+    window.addEventListener('pointerdown', onShowcaseTap, { passive: true })
+    window.addEventListener('scroll', onShowcaseScroll, { passive: true })
     measure()
 
     return () => {
@@ -106,6 +150,10 @@ export function useJourneyScroll() {
       window.removeEventListener('scroll', schedule)
       window.removeEventListener('resize', measure)
       window.removeEventListener('pointermove', onPointer)
+      window.removeEventListener('pointerdown', onShowcaseTap)
+      window.removeEventListener('scroll', onShowcaseScroll)
+      unsubscribe()
+      endShowcase()
       lenis?.destroy()
       lenis = null
     }

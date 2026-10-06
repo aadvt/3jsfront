@@ -1,34 +1,54 @@
+import type { CSSProperties } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Station } from '../content/stations'
-import { useChoices } from '../state/journey'
+import { startShowcase, useChoices } from '../state/journey'
 
 /**
  * The station's one interactive idea, as real buttons. Clicking the matching
  * part of the model makes the same choice: both write the same state, so the
  * text below always says what the stage shows.
+ *
+ * Nothing about a button says it moves a 3D model, so the control says so:
+ * a live tag by its prompt, and a light running round each option's outline
+ * until the reader has made a choice here (on a button or on the model).
+ * On a phone a choice also brings the model forward to play it out.
  */
 export function StationControl({ station }: { station: Station }) {
   const { control } = station
   const selected = useChoices((s) => s.selection[station.id])
   const purposes = useChoices((s) => s.purposes)
-  const choose = useChoices((s) => s.choose)
+  const pick = useChoices((s) => s.choose)
+  const choose = (station: Station['id'], option: string) => {
+    pick(station, option)
+    startShowcase()
+  }
+  const untried = useChoices((s) => s.pulse[station.id] === 0)
   const promptId = `${station.id}-prompt`
+  const prompt = (
+    <p className="control__prompt" id={promptId}>
+      <span>{control.prompt}</span>
+      <span className="control__live" aria-hidden="true">
+        <span className="control__dot" />
+        moves the model
+      </span>
+    </p>
+  )
+  const order = (i: number) => ({ '--i': i }) as CSSProperties
 
   if (control.kind === 'toggle') {
     const declined = control.options.filter((o) => !purposes[o.id]).map((o) => o.label.toLowerCase())
     return (
-      <div className="control">
-        <p className="control__prompt" id={promptId}>
-          {control.prompt}
-        </p>
+      <div className="control" data-untried={untried || undefined}>
+        {prompt}
         <div className="switches" role="group" aria-labelledby={promptId}>
-          {control.options.map((option) => {
+          {control.options.map((option, i) => {
             const locked = control.locked?.find((l) => l.id === option.id)
             const on = Boolean(purposes[option.id])
             return (
               <button
                 key={option.id}
                 className="switch"
+                style={order(i)}
                 type="button"
                 role="switch"
                 aria-checked={on}
@@ -57,17 +77,16 @@ export function StationControl({ station }: { station: Station }) {
 
   const current = control.options.find((o) => o.id === selected)
   return (
-    <div className="control">
-      <p className="control__prompt" id={promptId}>
-        {control.prompt}
-      </p>
+    <div className="control" data-untried={untried || undefined}>
+      {prompt}
       <div className="chips" role="group" aria-labelledby={promptId} data-count={control.options.length}>
-        {control.options.map((option) => {
+        {control.options.map((option, i) => {
           const on = option.id === selected
           return (
             <button
               key={option.id}
               className="chip"
+              style={order(i)}
               type="button"
               aria-pressed={on}
               data-tone={option.tone}

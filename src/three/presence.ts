@@ -10,15 +10,16 @@ export const stage = {
   elapsed: 0,
   /** Reduced motion: cut between complete states, no idle animation. */
   still: false,
+  /** Phone showcase, damped: 1 while the model is forward over the words. */
+  show: 0,
 }
 
-/** 1 while a station is framed, falling to 0 a station away. */
+/**
+ * 1 while a station is framed, falling to 0 a station away. In the hero
+ * every station is hidden: your data stands alone until the reader sets off.
+ */
 export function presence(index: number) {
-  const near = clamp01(1 - Math.abs(stage.pos - index) * 1.15)
-  // In the overview the first stations stand assembled, so the route reads as
-  // a route; the rest wait, out of the way of the title.
-  const overview = index < 5 ? clamp01(-stage.pos * 1.4) : 0
-  return Math.max(near, overview)
+  return clamp01(1 - Math.abs(stage.pos - index) * 1.15)
 }
 
 /** An eased reveal for the n-th part of a station, so models assemble in order. */
